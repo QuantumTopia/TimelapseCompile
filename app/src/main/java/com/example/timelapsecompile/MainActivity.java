@@ -19,7 +19,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
     }
 
-    private void displayImage() {
+    private void displayImg() {
         BitmapProvider b = new BitmapProvider(getApplicationContext());
         ImageView iv = (ImageView) findViewById(R.id.image);
         iv.setImageBitmap(b.getBitmap());
