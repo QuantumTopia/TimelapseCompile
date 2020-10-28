@@ -7,6 +7,7 @@ import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -23,6 +24,8 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -55,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent();
         intent.setType("image/*");
         intent.setAction(Intent.ACTION_GET_CONTENT);
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         startActivityForResult(Intent.createChooser(intent,"Select Picture:"),1);
     }
 
@@ -65,10 +69,17 @@ public class MainActivity extends AppCompatActivity {
             // The result data contains a URI for the document or directory that
             // the user selected.
             Uri uri = null;
-            if (resultData != null) {
+            List<Uri> uris = new ArrayList<>();
+            TextView tv = (TextView) findViewById(R.id.image_view);
+            if (resultData.getClipData() != null) {
+                ClipData clipData = resultData.getClipData();
+                for (int i = 0; i < clipData.getItemCount(); i++) {
+                    uris.add(clipData.getItemAt(i).getUri());
+                }
+            }
+            else if (resultData != null) {
                 uri = resultData.getData();
                 // Perform operations on the document using its URI.
-                TextView tv = (TextView) findViewById(R.id.image_view);
                 tv.setText(uri.toString());
                 Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.ic_launcher_background);
                 try {
@@ -80,6 +91,13 @@ public class MainActivity extends AppCompatActivity {
                 im.setImageBitmap(bitmap);
                 FileNameGetter.getAdjacentFileNames(uri);
             }
+            //https://stackoverflow.com/questions/17096726/how-to-encode-bitmaps-into-a-video-using-mediacodec
+            //https://bigflake.com/mediacodec/
+            String s = new String("");
+            for (Uri ur : uris) {
+                s = s.concat(uris.toString() + "\n");
+            }
+            tv.setText(s);
         }
     }
 }
