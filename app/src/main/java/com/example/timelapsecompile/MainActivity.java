@@ -8,11 +8,13 @@ import androidx.core.content.ContextCompat;
 import android.Manifest;
 import android.app.Activity;
 import android.content.ClipData;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -30,18 +32,35 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     public static final int PERMISSION_EXTERNAL_STORAGE = 1;
+    // Storage Permissions
+    private static final int REQUEST_EXTERNAL_STORAGE = 1;
+    private static String[] PERMISSIONS_STORAGE = {
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+    };
+
+    private static Context context;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        MainActivity.context = getApplicationContext();
         setContentView(R.layout.activity_main);
-        checkPremission();
+        verifyStoragePermissions();
     }
 
-    void checkPremission() {
-        ActivityCompat.requestPermissions(this,
-                new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
-                PERMISSION_EXTERNAL_STORAGE);
+    private void verifyStoragePermissions() {
+        // Check if we have write permission
+        int permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            // We don't have permission so prompt the user
+            ActivityCompat.requestPermissions(
+                    this,
+                    PERMISSIONS_STORAGE,
+                    REQUEST_EXTERNAL_STORAGE
+            );
+        }
     }
 
     private void displayImg() {
@@ -51,6 +70,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void selectImage(View view) {
+        EncodeAndMuxTest e = new EncodeAndMuxTest();
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                e.testEncodeVideoToMp4();
+            }
+        });
         showFileChooser();
     }
 
@@ -100,4 +126,6 @@ public class MainActivity extends AppCompatActivity {
             tv.setText(s);
         }
     }
+
+    public static Context getAppContext() { return context; }
 }
