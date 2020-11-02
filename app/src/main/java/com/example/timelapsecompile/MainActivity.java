@@ -6,6 +6,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.Context;
@@ -15,9 +16,11 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
@@ -29,7 +32,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static android.Manifest.permission.MANAGE_EXTERNAL_STORAGE;
+import static android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION;
+
 public class MainActivity extends AppCompatActivity {
+
+    // TODO check that the needed permissions exist and display warning if they dont
+    // TODO intent codes
+    // TODO only request perms if necessary
 
     public static final int PERMISSION_EXTERNAL_STORAGE = 1;
     // Storage Permissions
@@ -46,9 +56,19 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         MainActivity.context = getApplicationContext();
         setContentView(R.layout.activity_main);
-        verifyStoragePermissions();
+        testShit();
     }
 
+    private void testShit() {
+        EncodeAndMuxTest e = new EncodeAndMuxTest(Environment.getExternalStorageDirectory());
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                e.testEncodeVideoToMp4();
+            }
+        });
+    }
+/*
     private void verifyStoragePermissions() {
         // Check if we have write permission
         int permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
@@ -63,21 +83,27 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @TargetApi(Build.VERSION_CODES.R)
+    private void checkAllFileAccess() {
+//        if (!Environment.isExternalStorageManager()) {
+        startActivityForResult(new Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION), 0);
+        //startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+
+//        }
+    }
+
     private void displayImg() {
         BitmapProvider b = new BitmapProvider(getApplicationContext());
         ImageView iv = (ImageView) findViewById(R.id.image);
         iv.setImageBitmap(b.getBitmap());
     }
-
+*/
     public void selectImage(View view) {
-        EncodeAndMuxTest e = new EncodeAndMuxTest();
-        AsyncTask.execute(new Runnable() {
-            @Override
-            public void run() {
-                e.testEncodeVideoToMp4();
-            }
-        });
-        showFileChooser();
+
+    }
+/*
+    public void selectImages(View view) {
+        File dir = Environment.getExternalStorageDirectory();
     }
 
     private void showFileChooser() {
@@ -127,5 +153,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+ */
     public static Context getAppContext() { return context; }
+
 }

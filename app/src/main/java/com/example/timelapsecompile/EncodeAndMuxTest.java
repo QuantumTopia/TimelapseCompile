@@ -1,6 +1,8 @@
 package com.example.timelapsecompile;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
@@ -13,7 +15,9 @@ import android.opengl.EGLDisplay;
 import android.opengl.EGLExt;
 import android.opengl.EGLSurface;
 import android.opengl.GLES20;
+import android.opengl.GLUtils;
 import android.os.Environment;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Surface;
 
@@ -22,6 +26,8 @@ import androidx.documentfile.provider.DocumentFile;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 //20131106: removed hard-coded "/sdcard"
 //20131205: added alpha to EGLConfig
@@ -41,7 +47,7 @@ public class EncodeAndMuxTest {
     private static final boolean VERBOSE = false;           // lots of logging
 
     // where to put the output file (note: /sdcard requires WRITE_EXTERNAL_STORAGE permission)
-    private static final File OUTPUT_DIR = Environment.getExternalStorageDirectory();
+    private static File OUTPUT_DIR;
 
     // parameters for the encoder
     private static final String MIME_TYPE = "video/avc";    // H.264 Advanced Video Coding
@@ -73,6 +79,17 @@ public class EncodeAndMuxTest {
     // allocate one of these up front so we don't need to do it every time
     private MediaCodec.BufferInfo mBufferInfo;
 
+    int textures[];
+    private List<Bitmap> bitmaps;
+
+    public EncodeAndMuxTest(File f) {
+        OUTPUT_DIR = new File(f, "Test");
+        bitmaps = new ArrayList<>();
+        for (File file : OUTPUT_DIR.listFiles()) {
+            bitmaps.add(BitmapFactory.decodeFile(file.getAbsolutePath()));
+        }
+        textures = new int[bitmaps.size()];
+    }
 
     /**
      * Tests encoding of AVC video from a Surface.  The output is saved as an MP4 file.
@@ -87,12 +104,12 @@ public class EncodeAndMuxTest {
             prepareEncoder();
             mInputSurface.makeCurrent();
 
-            for (int i = 0; i < NUM_FRAMES; i++) {
+            for (int i = 0; i < bitmaps.size(); i++) {
                 // Feed any pending encoder output into the muxer.
                 drainEncoder(false);
 
                 // Generate a new frame of input.
-                generateSurfaceFrame(i);
+                generateSurfaceFrame(bitmaps.get(i), i);
                 mInputSurface.setPresentationTime(computePresentationTimeNsec(i));
 
                 // Submit it to the encoder.  The eglSwapBuffers call will block if the input
@@ -152,7 +169,7 @@ public class EncodeAndMuxTest {
         // Output filename.  Ideally this would use Context.getFilesDir() rather than a
         // hard-coded output directory.
         String outputPath = new File(OUTPUT_DIR,
-                "Test/test." + mWidth + "x" + mHeight + ".mp4").toString();
+                "test." + mWidth + "x" + mHeight + ".mp4").toString();
         Log.d(TAG, "output file is " + outputPath);
 
 
@@ -163,8 +180,6 @@ public class EncodeAndMuxTest {
         // We're not actually interested in multiplexing audio.  We just want to convert
         // the raw H.264 elementary stream we get from MediaCodec into a .mp4 file.
         try {
-            File f = new File(OUTPUT_DIR, "Test");
-            f.listFiles();
             mMuxer = new MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
         } catch (IOException ioe) {
             throw new RuntimeException("MediaMuxer creation failed", ioe);
@@ -192,6 +207,9 @@ public class EncodeAndMuxTest {
             mMuxer.stop();
             mMuxer.release();
             mMuxer = null;
+        }
+        if (textures != null) {
+            GLES20.glDeleteTextures(textures.length, textures, 0);
         }
     }
 
@@ -290,27 +308,39 @@ public class EncodeAndMuxTest {
      * </pre>
      * We draw one of the eight rectangles and leave the rest set to the clear color.
      */
-    private void generateSurfaceFrame(int frameIndex) {
-        frameIndex %= 8;
+    private void generateSurfaceFrame(Bitmap bitmap, int offset) {
+        GLES20.glGenTextures(1, textures, offset);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textures[offset]);
 
-        int startX, startY;
-        if (frameIndex < 4) {
-            // (0,0) is bottom-left in GL
-            startX = frameIndex * (mWidth / 4);
-            startY = mHeight / 2;
-        } else {
-            startX = (7 - frameIndex) * (mWidth / 4);
-            startY = 0;
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+
+        if (bitmap != null) {
+            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
         }
 
-        GLES20.glClearColor(TEST_R0 / 255.0f, TEST_G0 / 255.0f, TEST_B0 / 255.0f, 1.0f);
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-
-        GLES20.glEnable(GLES20.GL_SCISSOR_TEST);
-        GLES20.glScissor(startX, startY, mWidth / 4, mHeight / 2);
-        GLES20.glClearColor(TEST_R1 / 255.0f, TEST_G1 / 255.0f, TEST_B1 / 255.0f, 1.0f);
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-        GLES20.glDisable(GLES20.GL_SCISSOR_TEST);
+//        frameIndex %= 8;
+//
+//        int startX, startY;
+//        if (frameIndex < 4) {
+//            // (0,0) is bottom-left in GL
+//            startX = frameIndex * (mWidth / 4);
+//            startY = mHeight / 2;
+//        } else {
+//            startX = (7 - frameIndex) * (mWidth / 4);
+//            startY = 0;
+//        }
+//
+//        GLES20.glClearColor(TEST_R0 / 255.0f, TEST_G0 / 255.0f, TEST_B0 / 255.0f, 1.0f);
+//        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+//
+//        GLES20.glEnable(GLES20.GL_SCISSOR_TEST);
+//        GLES20.glScissor(startX, startY, mWidth / 4, mHeight / 2);
+//        GLES20.glClearColor(TEST_R1 / 255.0f, TEST_G1 / 255.0f, TEST_B1 / 255.0f, 1.0f);
+//        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+//        GLES20.glDisable(GLES20.GL_SCISSOR_TEST);
     }
 
     /**
