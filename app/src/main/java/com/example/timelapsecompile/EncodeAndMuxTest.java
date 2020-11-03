@@ -21,8 +21,6 @@ import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Surface;
 
-import androidx.documentfile.provider.DocumentFile;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -96,9 +94,9 @@ public class EncodeAndMuxTest {
      */
     public void testEncodeVideoToMp4() {
         // QVGA at 2Mbps
-        mWidth = 320;
-        mHeight = 240;
-        mBitRate = 2000000;
+        mWidth = 1920;
+        mHeight = 1080;
+        mBitRate = 10000000;
 
         try {
             prepareEncoder();

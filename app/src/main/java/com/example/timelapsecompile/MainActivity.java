@@ -32,6 +32,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import nl.bravobit.ffmpeg.ExecuteBinaryResponseHandler;
+import nl.bravobit.ffmpeg.FFmpeg;
+
 import static android.Manifest.permission.MANAGE_EXTERNAL_STORAGE;
 import static android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION;
 
@@ -56,17 +59,92 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         MainActivity.context = getApplicationContext();
         setContentView(R.layout.activity_main);
-        testShit();
-    }
-
-    private void testShit() {
-        EncodeAndMuxTest e = new EncodeAndMuxTest(Environment.getExternalStorageDirectory());
+        //testShit();
+        loadFFMPEG();
         AsyncTask.execute(new Runnable() {
             @Override
             public void run() {
-                e.testEncodeVideoToMp4();
+                createVideo();
             }
         });
+
+    }
+
+    private void loadFFMPEG() {
+        if (FFmpeg.getInstance(this).isSupported()) {
+            // ffmpeg is supported
+        } else {
+            // ffmpeg is not supported
+        }
+    }
+
+    private void createVideo() {
+        FFmpeg ffmpeg = FFmpeg.getInstance(context);
+        // to execute "ffmpeg -version" command you just need to pass "-version"
+        File f = Environment.getExternalStorageDirectory();
+        f = new File(f, "Test");
+        String imagePath = f.getAbsolutePath() + "/Test/A";
+
+        String[] cmd = {
+                "-framerate", "3",
+                "-start_number", "7305090",
+               // "-f ", "image2 ",
+               // "-s ", "1920x1080 ",
+                "-i", "" + imagePath + "%d.JPG",
+               // "-vcodec ", "libx264 ",
+               // "-crf ", "25 ",
+                "-pix_fmt", "yuv420p",
+                "" + f.getAbsolutePath() + "/Test/test.mp4" };
+
+//        String[] cmd = { "-r 60 -f image2 -s 1920x1080 -i " + imagePath + "%d.JPG -vcodec libx264 -crf 25 -pix_fmt yuv420p " + f.getAbsolutePath() + "/test.mp4 " };
+
+//        String[] cmd = {
+//                "-framerate 25",
+//                "-pattern_type sequence",
+//                "-start_number 7305088",
+//                "-r 3",
+//                "-i A%d.jpg",
+//                "-s 720x480 test.avi" };
+
+//        String[] cmd = { "-help" };
+
+        ffmpeg.execute(cmd, new ExecuteBinaryResponseHandler() {
+
+            @Override
+            public void onStart() {
+                testShit();
+            }
+
+            @Override
+            public void onProgress(String message) {}
+
+            @Override
+            public void onFailure(String message) {
+                testShit();
+            }
+
+            @Override
+            public void onSuccess(String message) {
+                testShit();
+            }
+
+            @Override
+            public void onFinish() {
+                testShit();
+            }
+
+        });
+    }
+
+    private void testShit() {
+        Environment.getExternalStorageDirectory();
+//        EncodeAndMuxTest e = new EncodeAndMuxTest(Environment.getExternalStorageDirectory());
+//        AsyncTask.execute(new Runnable() {
+//            @Override
+//            public void run() {
+//                e.testEncodeVideoToMp4();
+//            }
+//        });
     }
 /*
     private void verifyStoragePermissions() {
